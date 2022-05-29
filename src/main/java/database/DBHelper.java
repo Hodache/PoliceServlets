@@ -79,11 +79,13 @@ public class DBHelper {
             ResultSet rs = statement.executeQuery();
 
             while (rs.next()){
+                String id = rs.getString("F_ID");
                 String date = rs.getDate("F_DATE").toString();
                 String description = rs.getString("F_DESCRIPTION");
                 int size = rs.getInt("F_SIZE");
 
                 Fine fine = new Fine(
+                        id,
                         date,
                         description,
                         size
@@ -140,23 +142,6 @@ public class DBHelper {
         }
 
         return status;
-    }
-
-
-    public static boolean deleteFine(int fineID) {
-        try {
-            PreparedStatement statement = connection.prepareStatement(
-                    "DELETE FROM Fines WHERE F_ID = ?");
-
-            statement.setInt(1, fineID);
-
-            statement.executeUpdate();
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return false;
-        }
-        return true;
     }
 
     public static Driver getDriverByLicense(String license) {
@@ -316,5 +301,96 @@ public class DBHelper {
             return false;
         }
         return true;
+    }
+
+    public static boolean deleteFine(String id) {
+        try {
+            PreparedStatement statement = connection.prepareStatement(
+                    "DELETE FROM Fines WHERE F_ID = ?");
+
+            statement.setString(1, id);
+
+            statement.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+        return true;
+    }
+
+    public static void updateFine(int id, String license, String description, int size) {
+        try {
+            PreparedStatement statement = connection.prepareStatement(
+                    "UPDATE Fines SET " +
+                            "D_LICENSE = ?, F_DESCRIPTION = ?, F_SIZE = ? " +
+                            "WHERE F_ID = ? ");
+
+            statement.setString(1, license);
+            statement.setString(2, description);
+            statement.setInt(3, size);
+            statement.setInt(4, id);
+
+            statement.executeUpdate();
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static ArrayList<Driver> getBadDrivers(int finesCount) {
+        ArrayList<Driver> driversList = new ArrayList<>();
+
+        try {
+
+            PreparedStatement statement = connection.prepareStatement(
+                    "SELECT * FROM Drivers d " +
+                            "WHERE EXISTS (SELECT D_LICENSE " +
+                            "FROM Fines " +
+                            "WHERE d.D_LICENSE = Fines.D_LICENSE " +
+                            "GROUP BY Fines.D_LICENSE " +
+                            "HAVING COUNT (Fines.F_ID) > ?)"
+            );
+
+            statement.setInt(1, finesCount);
+
+            ResultSet rs = statement.executeQuery();
+
+            while (rs.next()){
+                String license = rs.getString("D_LICENSE").toString();
+                String firstName = rs.getString("D_FIRSTNAME");
+                String lastName = rs.getString("D_LASTNAME");
+
+                Driver driver = new Driver(
+                        license,
+                        firstName,
+                        lastName
+                );
+                driversList.add(driver);
+            }
+        }
+        catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return driversList;
+    }
+
+    public static int getFinesSum() {
+        int finesSum = 0;
+
+        try {
+
+            Statement statement = connection.createStatement();
+
+            ResultSet rs = statement.executeQuery("SELECT SUM(F_SIZE) AS 'finesSum' From Fines");
+
+            rs.next();
+            finesSum = rs.getInt("finesSum");
+        }
+        catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return finesSum;
     }
 }
